@@ -1,0 +1,18 @@
+Features Planned:
+Dynamic Aggression: The ability to enter and exit an engagement based on the health total of the robot as well as taking into account the health total of the robot we are engaging on
+
+Rate Controlled Radar and Gun Movement: Keeping the gun and radar moving independent of the robot while maintaining accuracy
+
+Ram Conditions: Have the robot evaluate what are and are not good conditions for ramming for extra points (i.e. Low health, high enemy health, and if the enemy is ready to fire),
+this should create a sort of hierarchy of conditions which keep the robot gaining points but still maintain safety
+
+Low Power Shots: Since points are gained just from damage to an enemy the robot should always be firing as many small shots as it can at someone .1-.5 power shots will likely give
+high point totals at relatively low safety cost to the robot, need to code in these shots somewhere they will be optimal and have the maximum chance of hitting
+
+Clock: If the robot is running constantly in the same loop its likely to get hit by the same attacks multiple times, adding a variable to act as a clock and switches between
+a few different behaviors is likely to improve survivability, the clock switches should probably take into account the health total of the robot as well
+	- Potential Behavior Settings:
+		Looping closer to the boundary of the map
+		Moving in towards the center and then out again in arcs
+		Zigzag style movement
+		Really whatever movement pattern you think will work to dodge bullets

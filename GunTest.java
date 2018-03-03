@@ -1,16 +1,17 @@
 package robots;
 
 import java.awt.Color;
+import java.awt.geom.Point2D;
+
 import robocode.*;
-import static robocode.util.Utils.normalRelativeAngleDegrees;
-import static robocode.util.Utils.normalRelativeAngle;
+import static robocode.util.Utils.*;
 
 public class GunTest extends RateControlRobot{
 	private int turnSwitch = 1;
 	private int gunTurnSwitch = 1;
 	private int turnRate = 5;
+	private String pattern;
 	private int clock = 0;
-	private int pattern = 0;
 	
 	public void run() {
 		setBodyColor(Color.RED);
@@ -37,15 +38,18 @@ public class GunTest extends RateControlRobot{
 			}
 		});
 		while(true) {
-			setGunRotationRate(5 * gunTurnSwitch);
+			
 			switch(pattern) {
-				case 0:
+				case "HUNT":
 					setVelocityRate(10);
 					setTurnRate(turnSwitch * turnRate);
 					break;
-				case 1:
-				case 2:
+
 				default:
+					setGunRotationRate(10 * gunTurnSwitch);
+					setVelocityRate(10);
+					setTurnRate(turnSwitch * turnRate);
+					break;
 			}
 			execute();
 		}
@@ -58,9 +62,9 @@ public class GunTest extends RateControlRobot{
 		} else {
 			gunTurnSwitch = -1;
 		}
-		double targetBearing = getHeading() + e.getBearing();
+		double targetAbsBearing = getHeading() + e.getBearing();
 		double targetVelocity = e.getVelocity();
-		double bearingFromGun = normalRelativeAngleDegrees(targetBearing - getGunHeading());
+		double bearingFromGun = normalRelativeAngleDegrees(targetAbsBearing - getGunHeading());
 		if(targetVelocity == 0) {
 			if(bearingFromGun <= 10) {
 				if(canFire()) {
@@ -71,6 +75,20 @@ public class GunTest extends RateControlRobot{
 			}
 		} else {
 			leadShot(getProjectileSpeed(e.getDistance()),e);
+			if(canFire()) {
+				fire(getFirePower(e.getDistance()));
+			}
+		}
+		switch(pattern) {
+			case "HUNT":
+				setVelocityRate(30);
+				turnRight(e.getBearing());
+				scan();
+				break;
+			case "COWER":
+				setVelocityRate(50);
+				turnRight(-e.getBearing());
+			default:
 		}
 		
 	}
@@ -90,13 +108,11 @@ public class GunTest extends RateControlRobot{
 	}
 	public void onCustomEvent(CustomEvent e) {
 		if(e.getCondition().getName().equals("LowEnergy")) {
-			
+			pattern = "COWER";
 		} else if(e.getCondition().getName().equals("Clock")) {
-			if(pattern == 2) {
-				pattern = 0;
-			} else {
-				pattern++;
-			}
+			
+		} else if(e.getCondition().getName().equals("HighEnergy")) {
+			pattern = "HUNT";
 		}
 	}
 	private boolean canFire() {
@@ -107,22 +123,41 @@ public class GunTest extends RateControlRobot{
 		double y = getY();
 		double distance = e.getDistance();
 		double targetVelocity = e.getVelocity();
-		double targetHeading = e.getHeading();
-		double time = projectileSpeed * distance;
+		double targetHeading = e.getHeadingRadians();
+		double targetAbsBearing = getHeadingRadians() + e.getBearingRadians();
+		long time = (long) (distance / projectileSpeed);
 		
-		double nextX = x + distance * Math.sin(targetHeading) + targetVelocity * Math.cos(targetHeading) * time;
-		double nextY = y + distance * Math.cos(targetHeading) + targetVelocity * Math.sin(targetHeading) * time;
-		
-		double trackAngle = Math.atan(nextX/nextY);
-		turnGunRightRadians(normalRelativeAngle(trackAngle - getGunHeadingRadians()));
-		if(canFire()) {
-			fire(getFirePower(distance));
-		}
+		double nextX = (x + distance * Math.sin(targetAbsBearing) + targetVelocity * Math.sin(targetHeading) * time);
+		double nextY = (y + distance * Math.cos(targetAbsBearing) + targetVelocity * Math.cos(targetHeading) * time);
+		double futureAbsBearing = getAbsoluteBearing(x,y,nextX,nextY);
+		double bearingFromGun = normalRelativeAngle(futureAbsBearing - getGunHeadingRadians());
+		turnGunRightRadians(bearingFromGun);
 	}
 	private double getProjectileSpeed(double distance) {
 		return 20 - getFirePower(distance) * 3 ;
 	}
 	private double getFirePower(double distance) {
 		return Math.min(400 / distance,3);
+	}
+	/* adapted from 
+	 * http://mark.random-article.com/weber/java/robocode/lesson4.html
+	 * absoluteBearing method
+	 */
+	private double getAbsoluteBearing(double x,double y,double x1,double y1) {
+		double deltaX = x1 - x;
+		double deltaY = y1 - y;
+		double distance = Point2D.distance(x, y, x1, y1);
+		double arcSin = Math.asin(deltaX/distance);
+		double bearing = 0;
+		if (deltaX > 0 && deltaY > 0) { // both pos: lower-Left
+			bearing = arcSin;
+		} else if (deltaX < 0 && deltaY > 0) { // x neg, y pos: lower-right
+			bearing = 2 * Math.PI + arcSin; // arcsin is negative here, actuall 360 - ang
+		} else if (deltaX > 0 && deltaY < 0) { // x pos, y neg: upper-left
+			bearing = Math.PI - arcSin;
+		} else if (deltaX < 0 && deltaY < 0) { // both neg: upper-right
+			bearing = Math.PI - arcSin; // arcsin is negative here, actually 180 + ang
+		}
+		return bearing;
 	}
 }

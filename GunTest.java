@@ -10,8 +10,9 @@ public class GunTest extends RateControlRobot{
 	private int turnSwitch = 1;
 	private int gunTurnSwitch = 1;
 	private int turnRate = 5;
-	private String pattern;
+	private String pattern = "";
 	private int clock = 0;
+	private double fireSafety = 1.0;
 	
 	public void run() {
 		setBodyColor(Color.RED);
@@ -32,19 +33,28 @@ public class GunTest extends RateControlRobot{
 				return getEnergy() > 30;
 			}
 		});
-		addCustomEvent(new Condition("Clock") {
-			public boolean test() {
-				return clock >= 8;
-			}
-		});
 		while(true) {
-			
 			switch(pattern) {
 				case "HUNT":
-					setVelocityRate(10);
-					setTurnRate(turnSwitch * turnRate);
+					if(clock < 32) {
+						setGunRotationRate(30 * gunTurnSwitch);
+						setVelocityRate(10);
+						setTurnRate(turnSwitch * turnRate);
+					} else {
+						setVelocityRate(10);
+						setTurnRate(-turnSwitch * turnRate);
+					}
 					break;
-
+				case "COWER":
+					if(clock < 32) {
+						setGunRotationRate(45 * gunTurnSwitch);
+						setVelocityRate(50);
+						setTurnRate(turnSwitch * turnRate);
+					} else {
+						setVelocityRate(50);
+						setTurnRate(-turnSwitch * turnRate);
+					}
+					break;
 				default:
 					setGunRotationRate(10 * gunTurnSwitch);
 					setVelocityRate(10);
@@ -52,10 +62,12 @@ public class GunTest extends RateControlRobot{
 					break;
 			}
 			execute();
+			//clock();
 		}
 	}
 	public void onScannedRobot(ScannedRobotEvent e) {
 		setGunRotationRate(0);
+		setTurnRate(0);
 		execute();
 		if(e.getBearing() >= 0) {
 			gunTurnSwitch = 1;
@@ -88,7 +100,9 @@ public class GunTest extends RateControlRobot{
 			case "COWER":
 				setVelocityRate(50);
 				turnRight(-e.getBearing());
+				scan();
 			default:
+				break;
 		}
 		
 	}
@@ -99,7 +113,7 @@ public class GunTest extends RateControlRobot{
 			turnSwitch = -1;
 		}
 		if(getGunHeat() == 0){
-			fire(3);
+			fire(3 * fireSafety);
 		}
 		ahead(10);
 	}
@@ -109,10 +123,10 @@ public class GunTest extends RateControlRobot{
 	public void onCustomEvent(CustomEvent e) {
 		if(e.getCondition().getName().equals("LowEnergy")) {
 			pattern = "COWER";
-		} else if(e.getCondition().getName().equals("Clock")) {
-			
+			fireSafety = 0.75;
 		} else if(e.getCondition().getName().equals("HighEnergy")) {
 			pattern = "HUNT";
+			fireSafety = 1.0;
 		}
 	}
 	private boolean canFire() {
@@ -137,7 +151,7 @@ public class GunTest extends RateControlRobot{
 		return 20 - getFirePower(distance) * 3 ;
 	}
 	private double getFirePower(double distance) {
-		return Math.min(400 / distance,3);
+		return Math.min(400 / distance,3) * fireSafety;
 	}
 	/* adapted from 
 	 * http://mark.random-article.com/weber/java/robocode/lesson4.html
@@ -159,5 +173,11 @@ public class GunTest extends RateControlRobot{
 			bearing = Math.PI - arcSin; // arcsin is negative here, actually 180 + ang
 		}
 		return bearing;
+	}
+	private void clock() {
+		clock++;
+		if(clock > 64) {
+			clock = 0;
+		}
 	}
 }

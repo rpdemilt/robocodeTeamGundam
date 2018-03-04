@@ -2,17 +2,18 @@ package robots;
 
 import java.awt.Color;
 import java.awt.geom.Point2D;
-
 import robocode.*;
 import static robocode.util.Utils.*;
 
 public class GunTest extends RateControlRobot{
 	private int turnSwitch = 1;
 	private int gunTurnSwitch = 1;
-	private int turnRate = 5;
-	private String pattern = "";
+	private int turnRate = 10;
+	private String pattern = "HighEnergy";
 	private int clock = 0;
+	private final int MAX_CLOCK = 100;
 	private double fireSafety = 1.0;
+	private double[] energyTrack = new double[2]; 
 	
 	public void run() {
 		setBodyColor(Color.RED);
@@ -33,36 +34,41 @@ public class GunTest extends RateControlRobot{
 				return getEnergy() > 30;
 			}
 		});
+		addCustomEvent(new Condition("ShotPredicted") {
+			public boolean test() {
+				return ((energyTrack[0] - energyTrack[1]) > 1);
+			}
+		});
 		while(true) {
 			switch(pattern) {
 				case "HUNT":
-					if(clock < 32) {
-						setGunRotationRate(30 * gunTurnSwitch);
-						setVelocityRate(10);
+					if(clock < MAX_CLOCK) {
+						setGunRotationRate(10 * gunTurnSwitch);
+						setVelocityRate(4);
 						setTurnRate(turnSwitch * turnRate);
 					} else {
-						setVelocityRate(10);
+						setVelocityRate(-4);
 						setTurnRate(-turnSwitch * turnRate);
 					}
 					break;
 				case "COWER":
-					if(clock < 32) {
-						setGunRotationRate(45 * gunTurnSwitch);
-						setVelocityRate(50);
+					if(clock < MAX_CLOCK) {
+						setGunRotationRate(10 * gunTurnSwitch);
+						setVelocityRate(8);
 						setTurnRate(turnSwitch * turnRate);
 					} else {
-						setVelocityRate(50);
+						setVelocityRate(-8);
 						setTurnRate(-turnSwitch * turnRate);
 					}
 					break;
 				default:
 					setGunRotationRate(10 * gunTurnSwitch);
-					setVelocityRate(10);
+					setVelocityRate(6);
 					setTurnRate(turnSwitch * turnRate);
 					break;
 			}
 			execute();
-			//clock();
+			clock();
 		}
 	}
 	public void onScannedRobot(ScannedRobotEvent e) {
@@ -93,14 +99,21 @@ public class GunTest extends RateControlRobot{
 		}
 		switch(pattern) {
 			case "HUNT":
-				setVelocityRate(30);
+				setVelocityRate(0);
+				setTurnRate(0);
+				execute();
+				System.exit(0);
 				turnRight(e.getBearing());
+				ahead(e.getDistance() + 10);
 				scan();
 				break;
 			case "COWER":
-				setVelocityRate(50);
+				setVelocityRate(8);
+				setTurnRate(0);
+				
 				turnRight(-e.getBearing());
 				scan();
+				break;
 			default:
 				break;
 		}
@@ -119,6 +132,7 @@ public class GunTest extends RateControlRobot{
 	}
 	public void onHitWall(HitWallEvent e) {
 		setVelocityRate(-1 * getVelocityRate());
+		setTurnRate(0);
 	}
 	public void onCustomEvent(CustomEvent e) {
 		if(e.getCondition().getName().equals("LowEnergy")) {
@@ -127,6 +141,12 @@ public class GunTest extends RateControlRobot{
 		} else if(e.getCondition().getName().equals("HighEnergy")) {
 			pattern = "HUNT";
 			fireSafety = 1.0;
+		} else if(e.getCondition().getName().equals("ShotPredicted")) {
+			if(pattern.equals("HUNT")) {
+				dodge();
+			} else if(pattern.equals("COWER")) {
+				safeDodge();
+			}
 		}
 	}
 	private boolean canFire() {
@@ -176,8 +196,16 @@ public class GunTest extends RateControlRobot{
 	}
 	private void clock() {
 		clock++;
-		if(clock > 64) {
+		if(clock > MAX_CLOCK) {
 			clock = 0;
 		}
+	}
+	private void dodge() {
+		setVelocityRate(-getVelocityRate());
+		back(30);
+	}
+	private void safeDodge() {
+		setVelocityRate(-getVelocityRate());
+		back(10);
 	}
 }

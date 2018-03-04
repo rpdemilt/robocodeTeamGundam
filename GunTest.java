@@ -9,7 +9,7 @@ public class GunTest extends RateControlRobot{
 	private int turnSwitch = 1;
 	private int gunTurnSwitch = 1;
 	private int turnRate = 10;
-	private String pattern = "HighEnergy";
+	private String pattern = "HUNT";
 	private int clock = 0;
 	private final int MAX_CLOCK = 100;
 	private double fireSafety = 1.0;

@@ -11,7 +11,7 @@ public class MoveTester extends RateControlRobot{
 	private int strafeSwitch = 1;
 	private int gunTurnSwitch = 1;
 	private int turnRate = 10;
-	private String pattern = "HUNT";
+	private final int WALL_BOUNDARY = 50;
 	private int clock = 0;
 	private final int MAX_CLOCK = 100;
 	private double fireSafety = 1.0;
@@ -26,35 +26,34 @@ public class MoveTester extends RateControlRobot{
 		setAdjustGunForRobotTurn(true);
 		setAdjustRadarForGunTurn(false);
 		
-		addCustomEvent(new Condition("HighEnergy") {
-			public boolean test() {
-				return getEnergy() > 80;
-			}
-		});
-		addCustomEvent(new Condition("LowEnergy") {
-			public boolean test() {
-				return getEnergy() > 30;
-			}
-		});
 		addCustomEvent(new Condition("ShotPredicted") {
 			public boolean test() {
-				return ((energyTrack[0] - energyTrack[1]) > 1);
+				return ((energyTrack[0] - energyTrack[1]) > 2);
+			}
+		});
+		addCustomEvent(new Condition("Wall") {
+			public boolean test() {
+				return (getX() <= WALL_BOUNDARY || getX() >= getBattleFieldWidth() - WALL_BOUNDARY ||
+						getY() <= WALL_BOUNDARY || getY() >= getBattleFieldHeight() - WALL_BOUNDARY);
 			}
 		});
 		while(true) {
+			setVelocityRate(8);
 			setGunRotationRate(10);
 			turnRight(turnSwitch * 5);
-			setAhead(10);
 			execute();
 		}
 	}
 	public void onScannedRobot(ScannedRobotEvent e) {
 		setGunRotationRate(0);
 		execute();
-		
+	
+		//energyTrack[0] = e.getEnergy();
 		if(e.getBearing() >= 0) {
+			turnSwitch = 1;
 			gunTurnSwitch = 1;
 		} else {
+			turnSwitch = -1;
 			gunTurnSwitch = -1;
 		}
 		double targetAbsBearing = getHeading() + e.getBearing();
@@ -63,45 +62,56 @@ public class MoveTester extends RateControlRobot{
 		if(targetVelocity == 0) {
 			if(bearingFromGun <= 10) {
 				if(canFire()) {
-					fire(3);
+					setFire(3);
 				}
 			} else {
 				setTurnGunRight(getHeading() + bearingFromGun);
 			}
 		} else {
+			//energyTrack[1] = e.getEnergy();
 			leadShot(getProjectileSpeed(e.getDistance()),e);
 			if(canFire()) {
-				fire(getFirePower(e.getDistance()));
+				setFire(getFirePower(e.getDistance()));
 			}
+			
 		}
+		if(getEnergy() > 50) {
+			ram(e);
+			execute();
+		} else {
+			strafe(e);
+			scan();
+		}
+		
 	}
 	public void onHitRobot(HitRobotEvent e) {
+		double targetAbsBearing = getHeading() + e.getBearing();
+		double bearingFromGun = normalRelativeAngleDegrees(targetAbsBearing - getGunHeading());
 		if(e.getBearing() >= 0) {
 			turnSwitch = 1;
 		} else {
 			turnSwitch = -1;
 		}
+		setTurnGunRight(bearingFromGun);
 		if(getGunHeat() == 0){
-			fire(3 * fireSafety);
+			setFire(3 * fireSafety);
 		}
-		ahead(10);
+		setBack(100);
 	}
 	public void onHitWall(HitWallEvent e) {
-		back(50);
+		setBack(50);
 	}
 	public void onCustomEvent(CustomEvent e) {
-		if(e.getCondition().getName().equals("LowEnergy")) {
-			pattern = "COWER";
-			fireSafety = 0.75;
-		} else if(e.getCondition().getName().equals("HighEnergy")) {
-			pattern = "HUNT";
-			fireSafety = 1.0;
-		} else if(e.getCondition().getName().equals("ShotPredicted")) {
-			if(pattern.equals("HUNT")) {
+		if(e.getCondition().getName().equals("ShotPredicted")) {
+			if(getEnergy() > 50) {
 				dodge();
-			} else if(pattern.equals("COWER")) {
+			} else {
 				safeDodge();
 			}
+			energyTrack = new double[2];
+		} else if(e.getCondition().getName().equals("Wall")) {
+			turnRight(90);
+			ahead(100);
 		}
 	}
 	private boolean canFire() {
@@ -164,7 +174,7 @@ public class MoveTester extends RateControlRobot{
 		back(10);
 	}
 	private void strafe(ScannedRobotEvent e) {
-		setTurnRight(e.getBearing() + 90);
+		setTurnRight(e.getBearing() + 90 + 5);
 		setVelocityRate(4);
 		setGunRotationRate(30);
 	}
@@ -173,7 +183,7 @@ public class MoveTester extends RateControlRobot{
 		setGunRotationRate(30);
 	}
 	private void ram(ScannedRobotEvent e) {
-		setTurnRight(e.getBearing());
+		turnRight(e.getBearing());
 		ahead(e.getDistance() + 7);
 	}
 }
